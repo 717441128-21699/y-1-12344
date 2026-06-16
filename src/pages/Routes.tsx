@@ -14,7 +14,71 @@ import {
   Calendar,
 } from 'lucide-react';
 import { riskPredictions } from '../data/mockData';
-import type { RiskPrediction } from '../types';
+import { useAppStore } from '../store';
+import type { RiskPrediction, RoutePlanResult, UploadedRoutePlan, UploadedAirspaceDoc } from '../types';
+
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+const routePlanTemplates: UploadedRoutePlan[] = [
+  { fileName: '', routeCount: 8, takeoffPoints: 12, plannedTime: '2026-06-17 08:00 - 18:00', routes: [{ name: 'A01', takeoff: '配送中心', landing: '东区站' }, { name: 'A02', takeoff: '配送中心', landing: '西区站' }] },
+  { fileName: '', routeCount: 15, takeoffPoints: 22, plannedTime: '2026-06-17 06:00 - 20:00', routes: [{ name: 'B01', takeoff: '物流园', landing: '南郊站' }, { name: 'B02', takeoff: '物流园', landing: '北站' }] },
+  { fileName: '', routeCount: 6, takeoffPoints: 9, plannedTime: '2026-06-17 09:00 - 17:00', routes: [{ name: 'C01', takeoff: '中转站', landing: '开发区' }, { name: 'C02', takeoff: '中转站', landing: '大学城' }] },
+  { fileName: '', routeCount: 20, takeoffPoints: 28, plannedTime: '2026-06-17 05:00 - 22:00', routes: [{ name: 'D01', takeoff: '枢纽站', landing: '机场' }, { name: 'D02', takeoff: '枢纽站', landing: '工业园区' }] },
+];
+
+const airspaceTemplates: UploadedAirspaceDoc[] = [
+  { fileName: '', noFlyZones: ['北京首都机场周边', '上海虹桥机场航线', '军事管制区A-03'], validPeriod: '2026-06-17 至 2026-06-30', restrictions: ['高度限制120m以下', '夜间禁止飞行'] },
+  { fileName: '', noFlyZones: ['深圳宝安机场航路', '军事演习区B-12', '政府机关上空'], validPeriod: '2026-06-15 至 2026-07-15', restrictions: ['仅限工作日飞行', '风速>15m/s禁飞'] },
+  { fileName: '', noFlyZones: ['成都双流机场管制区', '人口密集区C-07'], validPeriod: '2026-06-18 至 2026-06-25', restrictions: ['高度限制80m以下', '单次飞行不超过30分钟'] },
+  { fileName: '', noFlyZones: ['杭州萧山机场进近区', '西湖风景区', '军事管制区D-01'], validPeriod: '2026-06-16 至 2026-07-01', restrictions: ['景区周边限速60km/h', '暴雨天气自动禁飞'] },
+];
+
+const resultTemplates: RoutePlanResult[] = [
+  {
+    noFlyZones: ['北京首都机场周边', '上海虹桥机场航线', '军事管制区A-03'],
+    plannedTime: '2026-06-17 08:00 - 18:00',
+    routeCount: 8, takeoffPointCount: 12,
+    riskPredictions: riskPredictions.slice(0, 12),
+    recommendations: [
+      { type: 'detour', title: '方案一：最优绕飞', description: '绕开3处禁飞区，增加航程8.5km，预计延长飞行时间12分钟，整体准时率95.2%', extraInfo: [{ label: '能耗增加', value: '+6.8%', color: 'text-alert-amber' }, { label: '风险等级', value: '低', color: 'text-alert-green' }], approved: false },
+      { type: 'delay', title: '方案二：延迟起飞', description: '将下午14:00-16:00航班推迟至18:00后起飞，避开雷阵雨天气，无需调整航线', extraInfo: [{ label: '准时率', value: '98.1%', color: 'text-alert-green' }, { label: '用户影响', value: '18单延迟', color: 'text-alert-amber' }], approved: false },
+    ],
+  },
+  {
+    noFlyZones: ['深圳宝安机场航路', '军事演习区B-12', '政府机关上空'],
+    plannedTime: '2026-06-17 06:00 - 20:00',
+    routeCount: 15, takeoffPointCount: 22,
+    riskPredictions: riskPredictions.slice(0, 24),
+    recommendations: [
+      { type: 'detour', title: '方案一：南线绕飞', description: '绕开宝安航路和军事区，增加航程15km，需增派2架无人机', extraInfo: [{ label: '能耗增加', value: '+12.3%', color: 'text-alert-red' }, { label: '风险等级', value: '中', color: 'text-alert-amber' }], approved: false },
+      { type: 'delay', title: '方案二：分时段避让', description: '上午6-10点执行全部航线，10-14点暂停，14点后恢复飞行', extraInfo: [{ label: '准时率', value: '87.5%', color: 'text-alert-amber' }, { label: '用户影响', value: '32单延迟', color: 'text-alert-red' }], approved: false },
+    ],
+  },
+  {
+    noFlyZones: ['成都双流机场管制区', '人口密集区C-07'],
+    plannedTime: '2026-06-17 09:00 - 17:00',
+    routeCount: 6, takeoffPointCount: 9,
+    riskPredictions: riskPredictions.slice(0, 8),
+    recommendations: [
+      { type: 'detour', title: '方案一：低空穿越', description: '利用管制区边缘80m以下空域穿越，航程增加3km', extraInfo: [{ label: '能耗增加', value: '+2.1%', color: 'text-alert-green' }, { label: '风险等级', value: '低', color: 'text-alert-green' }], approved: false },
+      { type: 'delay', title: '方案二：错峰运行', description: '将密集区航线调整至上午执行，下午仅执行外围航线', extraInfo: [{ label: '准时率', value: '96.8%', color: 'text-alert-green' }, { label: '用户影响', value: '5单延迟', color: 'text-alert-amber' }], approved: false },
+    ],
+  },
+  {
+    noFlyZones: ['杭州萧山机场进近区', '西湖风景区', '军事管制区D-01'],
+    plannedTime: '2026-06-17 05:00 - 22:00',
+    routeCount: 20, takeoffPointCount: 28,
+    riskPredictions: riskPredictions.slice(0, 36),
+    recommendations: [
+      { type: 'detour', title: '方案一：大范围绕飞', description: '绕开风景区和军事区，增加航程22km，需增派4架无人机', extraInfo: [{ label: '能耗增加', value: '+18.5%', color: 'text-alert-red' }, { label: '风险等级', value: '低', color: 'text-alert-green' }], approved: false },
+      { type: 'delay', title: '方案二：限速穿越风景区', description: '景区周边限速60km/h，暂停景区核心区航线，改用地面配送', extraInfo: [{ label: '准时率', value: '82.3%', color: 'text-alert-amber' }, { label: '用户影响', value: '45单延迟', color: 'text-alert-red' }], approved: false },
+    ],
+  },
+];
 
 const riskColorMap = {
   low: { bg: 'bg-alert-green/10', text: 'text-alert-green', border: 'border-alert-green/30', label: '低风险' },
@@ -26,7 +90,21 @@ export default function Routes() {
   const [activeTab, setActiveTab] = useState<'upload' | 'prediction'>('upload');
   const [routeFile, setRouteFile] = useState<File | null>(null);
   const [airspaceFile, setAirspaceFile] = useState<File | null>(null);
-  const [uploaded, setUploaded] = useState(false);
+
+  const uploadedRoutePlan = useAppStore((state) => state.uploadedRoutePlan);
+  const uploadedAirspaceDoc = useAppStore((state) => state.uploadedAirspaceDoc);
+  const setUploadedRoutePlan = useAppStore((state) => state.setUploadedRoutePlan);
+  const setUploadedAirspaceDoc = useAppStore((state) => state.setUploadedAirspaceDoc);
+  const clearUploads = useAppStore((state) => state.clearUploads);
+  const approvals = useAppStore((state) => state.approvals);
+
+  const uploaded = !!uploadedRoutePlan && !!uploadedAirspaceDoc;
+
+  const routePlanResult: RoutePlanResult | null = (() => {
+    if (!uploadedRoutePlan || !uploadedAirspaceDoc) return null;
+    const h = hashStr((routeFile?.name || '') + (airspaceFile?.name || ''));
+    return resultTemplates[h % resultTemplates.length];
+  })();
 
   const highRiskCount = riskPredictions.filter((r) => r.riskLevel === 'high').length;
   const mediumRiskCount = riskPredictions.filter((r) => r.riskLevel === 'medium').length;
@@ -35,7 +113,9 @@ export default function Routes() {
     const file = e.target.files?.[0];
     if (file) {
       setRouteFile(file);
-      if (airspaceFile) setUploaded(true);
+      const h = hashStr(file.name);
+      const template = routePlanTemplates[h % routePlanTemplates.length];
+      setUploadedRoutePlan({ ...template, fileName: file.name });
     }
   };
 
@@ -43,8 +123,21 @@ export default function Routes() {
     const file = e.target.files?.[0];
     if (file) {
       setAirspaceFile(file);
-      if (routeFile) setUploaded(true);
+      const h = hashStr(file.name);
+      const template = airspaceTemplates[h % airspaceTemplates.length];
+      setUploadedAirspaceDoc({ ...template, fileName: file.name });
     }
+  };
+
+  const handleReset = () => {
+    setRouteFile(null);
+    setAirspaceFile(null);
+    clearUploads();
+  };
+
+  const getApprovalForRecommendation = (recIdx: number) => {
+    if (!routePlanResult) return null;
+    return approvals.find((a) => a.type === 'route_adjustment' && a.status !== 'rejected');
   };
 
   return (
@@ -56,6 +149,11 @@ export default function Routes() {
             上传航线计划与空域批文，预测高风险时段并获取方案建议
           </p>
         </div>
+        {uploaded && (
+          <button onClick={handleReset} className="btn-secondary text-sm">
+            重新上传
+          </button>
+        )}
       </div>
 
       <div className="flex items-center gap-2 p-1 bg-panel-bg rounded-xl w-fit border border-panel-border">
@@ -120,28 +218,28 @@ export default function Routes() {
               <div className="mt-6 p-4 bg-deep-space/50 rounded-xl">
                 <h4 className="text-sm font-medium text-text-primary mb-3">系统自动提取信息</h4>
                 <div className="space-y-2 text-sm">
-                  {uploaded ? (
+                  {uploadedRoutePlan ? (
                     <>
                       <div className="flex items-center justify-between">
                         <span className="text-text-secondary flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
                           计划起降时间
                         </span>
-                        <span className="text-text-primary font-mono">2026-06-17 08:00 - 18:00</span>
+                        <span className="text-text-primary font-mono">{uploadedRoutePlan.plannedTime}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-text-secondary flex items-center gap-2">
                           <MapPin className="w-4 h-4" />
                           航线数量
                         </span>
-                        <span className="text-text-primary">12 条</span>
+                        <span className="text-text-primary">{uploadedRoutePlan.routeCount} 条</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-text-secondary flex items-center gap-2">
                           <Route className="w-4 h-4" />
                           起降点
                         </span>
-                        <span className="text-text-primary">18 个</span>
+                        <span className="text-text-primary">{uploadedRoutePlan.takeoffPoints} 个</span>
                       </div>
                     </>
                   ) : (
@@ -183,15 +281,21 @@ export default function Routes() {
               <div className="mt-6 p-4 bg-deep-space/50 rounded-xl">
                 <h4 className="text-sm font-medium text-text-primary mb-3">禁飞区识别</h4>
                 <div className="space-y-2">
-                  {uploaded ? (
+                  {uploadedAirspaceDoc ? (
                     <>
-                      {['北京首都机场周边', '上海虹桥机场航线', '军事管制区A-03'].map((zone, i) => (
+                      {uploadedAirspaceDoc.noFlyZones.map((zone, i) => (
                         <div
                           key={i}
                           className="flex items-center justify-between p-2 bg-deep-space/50 rounded-lg"
                         >
                           <span className="text-sm text-text-secondary">{zone}</span>
                           <span className="badge-danger">禁飞</span>
+                        </div>
+                      ))}
+                      {uploadedAirspaceDoc.restrictions.map((r, i) => (
+                        <div key={i} className="flex items-center gap-2 p-2 bg-alert-amber/5 rounded-lg">
+                          <AlertTriangle className="w-3.5 h-3.5 text-alert-amber" />
+                          <span className="text-sm text-text-secondary">{r}</span>
                         </div>
                       ))}
                     </>
@@ -203,7 +307,7 @@ export default function Routes() {
             </div>
           </div>
 
-          {uploaded && (
+          {uploaded && routePlanResult && (
             <div className="lg:col-span-2 panel">
               <div className="panel-header">
                 <h3 className="font-semibold text-text-primary flex items-center gap-2">
@@ -213,43 +317,42 @@ export default function Routes() {
               </div>
               <div className="panel-body">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-5 bg-alert-green/5 border border-alert-green/20 rounded-xl">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2.5 rounded-lg bg-alert-green/10">
-                        <Route className="w-5 h-5 text-alert-green" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-text-primary">方案一：最优绕飞</h4>
-                        <p className="text-sm text-text-secondary mt-1">
-                          绕开3处禁飞区，增加航程8.5km，预计延长飞行时间12分钟，整体准时率95.2%
-                        </p>
-                        <div className="flex items-center gap-4 mt-3 text-xs">
-                          <span className="text-text-muted">能耗增加: <span className="text-alert-amber">+6.8%</span></span>
-                          <span className="text-text-muted">风险等级: <span className="text-alert-green">低</span></span>
-                        </div>
-                        <button className="btn-primary mt-4 text-sm py-1.5">采用此方案</button>
-                      </div>
-                    </div>
-                  </div>
+                  {routePlanResult.recommendations.map((rec, recIdx) => {
+                    const relatedApproval = getApprovalForRecommendation(recIdx);
+                    const canAdopt = !relatedApproval || relatedApproval.status === 'approved';
+                    const Icon = rec.type === 'detour' ? Route : Clock;
+                    const borderColor = rec.type === 'detour' ? 'alert-green' : 'tech-cyan';
 
-                  <div className="p-5 bg-tech-cyan/5 border border-tech-cyan/20 rounded-xl">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2.5 rounded-lg bg-tech-cyan/10">
-                        <Clock className="w-5 h-5 text-tech-cyan" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-text-primary">方案二：延迟起飞</h4>
-                        <p className="text-sm text-text-secondary mt-1">
-                          将下午14:00-16:00航班推迟至18:00后起飞，避开雷阵雨天气，无需调整航线
-                        </p>
-                        <div className="flex items-center gap-4 mt-3 text-xs">
-                          <span className="text-text-muted">准时率: <span className="text-alert-green">98.1%</span></span>
-                          <span className="text-text-muted">用户影响: <span className="text-alert-amber">18单延迟</span></span>
+                    return (
+                      <div key={recIdx} className={`p-5 bg-${borderColor}/5 border border-${borderColor}/20 rounded-xl`}>
+                        <div className="flex items-start gap-3">
+                          <div className={`p-2.5 rounded-lg bg-${borderColor}/10`}>
+                            <Icon className={`w-5 h-5 text-${borderColor}`} />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-text-primary">{rec.title}</h4>
+                            <p className="text-sm text-text-secondary mt-1">
+                              {rec.description}
+                            </p>
+                            <div className="flex items-center gap-4 mt-3 text-xs">
+                              {rec.extraInfo.map((info, infoIdx) => (
+                                <span key={infoIdx} className="text-text-muted">
+                                  {info.label}: <span className={info.color}>{info.value}</span>
+                                </span>
+                              ))}
+                            </div>
+                            <button
+                              className="btn-primary mt-4 text-sm py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                              disabled={!canAdopt}
+                              title={!canAdopt ? '需审批通过后执行' : undefined}
+                            >
+                              {canAdopt ? '采用此方案' : '需审批通过后执行'}
+                            </button>
+                          </div>
                         </div>
-                        <button className="btn-secondary mt-4 text-sm py-1.5">采用此方案</button>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

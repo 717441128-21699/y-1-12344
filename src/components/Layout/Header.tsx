@@ -1,10 +1,19 @@
-import { Bell, Search, ChevronDown, Settings } from 'lucide-react';
+import { Bell, Search, ChevronDown, Settings, ArrowLeftRight } from 'lucide-react';
 import { useAppStore } from '../../store';
+
+const levelLabels: Record<string, string> = {
+  national: '国家级管理员',
+  provincial: '省级管理员',
+  enterprise: '企业管理员',
+  regional: '区域调度员',
+};
 
 export default function Header() {
   const user = useAppStore((state) => state.user);
   const warnings = useAppStore((state) => state.warnings);
+  const switchRole = useAppStore((state) => state.switchRole);
   const pendingWarnings = warnings.filter((w) => w.status === 'pending').length;
+  const isNational = user.role === 'national_admin';
 
   return (
     <header className="h-16 bg-deep-space/80 backdrop-blur-sm border-b border-panel-border flex items-center justify-between px-6">
@@ -43,13 +52,18 @@ export default function Header() {
           <div>
             <p className="text-sm font-medium text-text-primary">{user.name}</p>
             <p className="text-xs text-text-muted">
-              {user.level === 'national'
-                ? '国家级管理员'
-                : user.level === 'provincial'
-                ? '省级管理员'
-                : '企业管理员'}
+              {levelLabels[user.level] || user.level}
             </p>
           </div>
+          {!isNational && (
+            <button
+              onClick={() => switchRole('national_admin')}
+              className="ml-2 p-1.5 rounded-lg hover:bg-tech-cyan/10 transition-colors"
+              title="切换回国家级管理员"
+            >
+              <ArrowLeftRight className="w-4 h-4 text-tech-cyan" />
+            </button>
+          )}
           <ChevronDown className="w-4 h-4 text-text-muted" />
         </div>
       </div>

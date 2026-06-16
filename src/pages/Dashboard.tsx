@@ -4,10 +4,32 @@ import HeatmapChart from '../components/Dashboard/HeatmapChart';
 import FailureRanking from '../components/Dashboard/FailureRanking';
 import DrillDownPanel from '../components/Dashboard/DrillDownPanel';
 import { useAppStore } from '../store';
-import { droneModelStats } from '../data/mockData';
 
 export default function Dashboard() {
-  const { selectedDroneModel, setSelectedDroneModel } = useAppStore();
+  const { selectedDroneModel, setSelectedDroneModel, getFilteredDrones, getFilteredRoutes, getFilteredProvinceData, getFilteredModelStats, getFilteredWarnings } = useAppStore();
+
+  const filteredDrones = getFilteredDrones();
+  const filteredRoutes = getFilteredRoutes();
+  const filteredProvinceData = getFilteredProvinceData();
+  const filteredModelStats = getFilteredModelStats();
+  const filteredWarnings = getFilteredWarnings();
+
+  const totalDeliveries = filteredProvinceData.reduce((sum, p) => sum + p.totalDeliveries, 0);
+  const onTimeRate = filteredProvinceData.length > 0
+    ? filteredProvinceData.reduce((sum, p) => sum + p.onTimeRate, 0) / filteredProvinceData.length
+    : 0;
+  const avgBatteryHealth = filteredDrones.length > 0
+    ? filteredDrones.reduce((sum, d) => sum + d.batteryHealth, 0) / filteredDrones.length
+    : 0;
+  const activeWarnings = filteredWarnings.filter((w) => w.status !== 'resolved').length;
+  const avgEfficiency = filteredRoutes.length > 0
+    ? filteredRoutes.reduce((sum, r) => sum + r.efficiency, 0) / filteredRoutes.length
+    : 0;
+  const satisfaction = onTimeRate > 90 ? 94 + (onTimeRate - 90) * 0.6 : 85 + (onTimeRate - 78) * 0.75;
+
+  const energyConsumption = filteredModelStats.length > 0
+    ? filteredModelStats.reduce((sum, s) => sum + (100 - s.avgEfficiency) * 0.004 + 0.1, 0) / filteredModelStats.length
+    : 0.18;
 
   return (
     <div className="space-y-6">
@@ -26,7 +48,7 @@ export default function Dashboard() {
             className="input-field w-52 h-9 text-sm"
           >
             <option value="">全部机型</option>
-            {droneModelStats.map((m) => (
+            {filteredModelStats.map((m) => (
               <option key={m.model} value={m.model}>
                 {m.model}
               </option>
@@ -38,41 +60,41 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <StatCard
           label="今日配送总量"
-          value="2,847"
+          value={totalDeliveries.toLocaleString()}
           icon={Package}
           change={5.2}
           color="cyan"
         />
         <StatCard
           label="准时配送率"
-          value="91.3%"
+          value={`${onTimeRate.toFixed(1)}%`}
           icon={Clock}
           change={1.8}
           color="green"
         />
         <StatCard
           label="平均电池健康"
-          value="84.7%"
+          value={`${avgBatteryHealth.toFixed(1)}%`}
           icon={Battery}
           change={-0.5}
           color="amber"
         />
         <StatCard
           label="活跃预警"
-          value="4"
+          value={activeWarnings}
           icon={AlertTriangle}
           color="red"
         />
         <StatCard
           label="能耗效率"
-          value="0.18 kWh/km"
+          value={`${energyConsumption.toFixed(2)} kWh/km`}
           icon={Zap}
           change={2.3}
           color="cyan"
         />
         <StatCard
           label="用户满意度"
-          value="94.2%"
+          value={`${satisfaction.toFixed(1)}%`}
           icon={Users}
           change={0.8}
           color="green"
@@ -93,7 +115,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="panel-body">
-            <HeatmapChart />
+            <HeatmapChart data={filteredProvinceData} />
           </div>
         </div>
 
@@ -105,7 +127,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="panel-body">
-            <FailureRanking />
+            <FailureRanking data={filteredModelStats} />
           </div>
         </div>
       </div>

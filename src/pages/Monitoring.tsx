@@ -24,7 +24,8 @@ const statusConfig = {
 };
 
 export default function Monitoring() {
-  const drones = useAppStore((state) => state.drones);
+  const getFilteredDrones = useAppStore((state) => state.getFilteredDrones);
+  const drones = getFilteredDrones();
   const [selectedDrone, setSelectedDrone] = useState<DroneType | null>(drones[0] || null);
   const [statusFilter, setStatusFilter] = useState<DroneType['status'] | 'all'>('all');
 
@@ -35,7 +36,7 @@ export default function Monitoring() {
   const flyingCount = drones.filter((d) => d.status === 'flying').length;
   const idleCount = drones.filter((d) => d.status === 'idle').length;
   const warningCount = drones.filter((d) => d.status === 'warning').length;
-  const avgBattery = drones.reduce((sum, d) => sum + d.currentBattery, 0) / drones.length;
+  const avgBattery = drones.length > 0 ? drones.reduce((sum, d) => sum + d.currentBattery, 0) / drones.length : 0;
 
   return (
     <div className="space-y-6">

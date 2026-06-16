@@ -22,11 +22,43 @@ import {
   Cell,
 } from 'recharts';
 import { weeklyReport } from '../data/mockData';
+import { useAppStore } from '../store';
 
 const PIE_COLORS = ['#06B6D4', '#F59E0B', '#EF4444', '#10B981', '#8B5CF6'];
 
 export default function Reports() {
-  const { deliveryStats, energyRanking, complaintDistribution, optimizationRecommendations, week } = weeklyReport;
+  const getFilteredDrones = useAppStore((state) => state.getFilteredDrones);
+  const getFilteredRoutes = useAppStore((state) => state.getFilteredRoutes);
+  const getFilteredModelStats = useAppStore((state) => state.getFilteredModelStats);
+  const getFilteredProvinceData = useAppStore((state) => state.getFilteredProvinceData);
+
+  const filteredDrones = getFilteredDrones();
+  const filteredRoutes = getFilteredRoutes();
+  const filteredModelStats = getFilteredModelStats();
+  const filteredProvinceData = getFilteredProvinceData();
+
+  const { complaintDistribution, optimizationRecommendations, week } = weeklyReport;
+
+  const totalDeliveries = filteredProvinceData.reduce((sum, p) => sum + p.totalDeliveries, 0);
+  const onTimeRate = filteredProvinceData.length > 0
+    ? filteredProvinceData.reduce((sum, p) => sum + p.onTimeRate, 0) / filteredProvinceData.length
+    : 0;
+  const avgDelay = filteredProvinceData.length > 0
+    ? filteredProvinceData.reduce((sum, p) => sum + p.avgDelay, 0) / filteredProvinceData.length
+    : 0;
+
+  const energyRanking = filteredModelStats.map((s) => ({
+    model: s.model,
+    kwhPerKm: Math.round(((100 - s.avgEfficiency) * 0.004 + 0.1) * 1000) / 1000,
+  })).sort((a, b) => a.kwhPerKm - b.kwhPerKm);
+
+  const deliveryStats = {
+    total: totalDeliveries,
+    onTimeRate: Math.round(onTimeRate * 10) / 10,
+    avgDelay: Math.round(avgDelay * 10) / 10,
+    weekOverWeek: 5.3,
+    yearOverYear: 18.7,
+  };
 
   return (
     <div className="space-y-6">

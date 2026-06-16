@@ -69,7 +69,7 @@ export interface User {
   id: string;
   name: string;
   role: 'national_admin' | 'provincial_admin' | 'enterprise_admin' | 'regional_dispatcher';
-  level: 'national' | 'provincial' | 'enterprise';
+  level: 'national' | 'provincial' | 'enterprise' | 'regional';
   province?: string;
   enterpriseId?: string;
   avatar?: string;
@@ -159,4 +159,34 @@ export interface RoutePlan {
   waypoints: { lat: number; lng: number }[];
   noFlyZones: string[];
   riskLevel: 'safe' | 'warning' | 'dangerous';
+}
+
+export interface UploadedRoutePlan {
+  fileName: string;
+  routeCount: number;
+  takeoffPoints: number;
+  plannedTime: string;
+  routes: { name: string; takeoff: string; landing: string }[];
+}
+
+export interface UploadedAirspaceDoc {
+  fileName: string;
+  noFlyZones: string[];
+  validPeriod: string;
+  restrictions: string[];
+}
+
+export interface RoutePlanResult {
+  noFlyZones: string[];
+  plannedTime: string;
+  routeCount: number;
+  takeoffPointCount: number;
+  riskPredictions: RiskPrediction[];
+  recommendations: {
+    type: 'detour' | 'delay';
+    title: string;
+    description: string;
+    extraInfo: { label: string; value: string; color: string }[];
+    approved: boolean;
+  }[];
 }

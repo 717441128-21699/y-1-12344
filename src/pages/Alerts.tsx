@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   AlertTriangle,
   Clock,
@@ -33,10 +33,13 @@ const statusConfig = {
 };
 
 export default function Alerts() {
-  const warnings = useAppStore((state) => state.warnings);
+  const getFilteredWarnings = useAppStore((state) => state.getFilteredWarnings);
   const handleWarning = useAppStore((state) => state.handleWarning);
   const createApproval = useAppStore((state) => state.createApproval);
   const user = useAppStore((state) => state.user);
+  const generateWarnings = useAppStore((state) => state.generateWarnings);
+
+  const warnings = getFilteredWarnings();
 
   const [filter, setFilter] = useState<Warning['status'] | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<Warning['type'] | 'all'>('all');
@@ -44,6 +47,10 @@ export default function Alerts() {
   const [selectedWarning, setSelectedWarning] = useState<Warning | null>(null);
   const [approvalType, setApprovalType] = useState<'route_adjustment' | 'grounding'>('route_adjustment');
   const [approvalDescription, setApprovalDescription] = useState('');
+
+  useEffect(() => {
+    generateWarnings();
+  }, [generateWarnings]);
 
   const filteredWarnings = warnings.filter((w) => {
     if (filter !== 'all' && w.status !== filter) return false;
@@ -76,7 +83,6 @@ export default function Alerts() {
       description: approvalDescription,
       province: selectedWarning.province,
     });
-    handleWarning(selectedWarning.id, 'handling');
     setShowApprovalModal(false);
     setSelectedWarning(null);
     setApprovalDescription('');

@@ -9,6 +9,7 @@ import {
   Plane,
   ChevronRight,
   MessageSquare,
+  Wrench,
 } from 'lucide-react';
 import { useAppStore } from '../store';
 import type { Approval } from '../types';
@@ -30,6 +31,7 @@ export default function Approvals() {
   const approvals = useAppStore((state) => state.approvals);
   const updateApproval = useAppStore((state) => state.updateApproval);
   const user = useAppStore((state) => state.user);
+  const drones = useAppStore((state) => state.drones);
 
   const [filter, setFilter] = useState<Approval['status'] | 'all'>('all');
   const [selectedApproval, setSelectedApproval] = useState<Approval | null>(null);
@@ -83,6 +85,13 @@ export default function Approvals() {
     setNote('');
   };
 
+  const getDroneForApproval = (approval: Approval) => {
+    const warnings = useAppStore.getState().warnings;
+    const warning = warnings.find((w) => w.id === approval.warningId);
+    if (!warning?.droneId) return null;
+    return drones.find((d) => d.id === warning.droneId);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -133,6 +142,7 @@ export default function Approvals() {
         {filteredApprovals.map((approval) => {
           const TypeIcon = typeConfig[approval.type].icon;
           const currentStep = getCurrentStep(approval.status);
+          const drone = getDroneForApproval(approval);
           return (
             <div key={approval.id} className="panel overflow-hidden">
               <div className="panel-header">
@@ -158,14 +168,34 @@ export default function Approvals() {
                     </p>
                   </div>
                 </div>
-                {canApprove(approval) && (
-                  <button
-                    onClick={() => setSelectedApproval(approval)}
-                    className="btn-primary"
-                  >
-                    处理审批
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {approval.type === 'route_adjustment' && approval.status === 'approved' && (
+                    <button className="btn-primary flex items-center gap-2 text-sm">
+                      <Wrench className="w-4 h-4" />
+                      执行调整
+                    </button>
+                  )}
+                  {approval.type === 'route_adjustment' && approval.status !== 'approved' && approval.status !== 'rejected' && (
+                    <span className="text-xs text-text-muted flex items-center gap-1">
+                      <Wrench className="w-3.5 h-3.5" />
+                      需审批通过后执行
+                    </span>
+                  )}
+                  {approval.type === 'grounding' && approval.status === 'approved' && drone && (
+                    <span className="badge-info flex items-center gap-1">
+                      <Wrench className="w-3.5 h-3.5" />
+                      无人机已转为维护状态
+                    </span>
+                  )}
+                  {canApprove(approval) && (
+                    <button
+                      onClick={() => setSelectedApproval(approval)}
+                      className="btn-primary"
+                    >
+                      处理审批
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="panel-body">

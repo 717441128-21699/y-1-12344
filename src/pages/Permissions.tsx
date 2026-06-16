@@ -11,8 +11,11 @@ import {
   Globe2,
   MapPin,
   Building,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { enterprises } from '../data/mockData';
+import { useAppStore } from '../store';
+import type { User as UserType } from '../types';
 
 const roles = [
   {
@@ -49,23 +52,46 @@ const roles = [
   },
 ];
 
+const levelLabels: Record<string, string> = {
+  national: '国家级',
+  provincial: '省级',
+  enterprise: '企业级',
+  regional: '区域级',
+};
+
 const users = [
-  { id: 1, name: '张建国', role: '国家级管理员', level: 'national', province: '全国', enterprise: '-', status: 'active' },
-  { id: 2, name: '李明华', role: '省级管理员', level: 'provincial', province: '广东省', enterprise: '-', status: 'active' },
-  { id: 3, name: '王志强', role: '省级管理员', level: 'provincial', province: '上海市', enterprise: '-', status: 'active' },
-  { id: 4, name: '赵晓燕', role: '运营企业管理员', level: 'enterprise', province: '北京', enterprise: '京东天鸿', status: 'active' },
-  { id: 5, name: '陈立新', role: '运营企业管理员', level: 'enterprise', province: '浙江省', enterprise: '菜鸟ET物流', status: 'inactive' },
-  { id: 6, name: '刘伟', role: '区域调度员', level: 'regional', province: '四川省', enterprise: '邮政EMS无人机', status: 'active' },
-  { id: 7, name: '周美玲', role: '区域调度员', level: 'regional', province: '广东省', enterprise: '顺丰无人机物流', status: 'active' },
+  { id: 1, name: '张建国', role: '国家级管理员', level: 'national', province: '全国', enterprise: '-', enterpriseId: undefined as string | undefined, status: 'active' },
+  { id: 2, name: '李明华', role: '省级管理员', level: 'provincial', province: '广东', enterprise: '-', enterpriseId: undefined as string | undefined, status: 'active' },
+  { id: 3, name: '王志强', role: '省级管理员', level: 'provincial', province: '上海', enterprise: '-', enterpriseId: undefined as string | undefined, status: 'active' },
+  { id: 4, name: '赵晓燕', role: '运营企业管理员', level: 'enterprise', province: '北京', enterprise: '京东天鸿', enterpriseId: 'ENT002', status: 'active' },
+  { id: 5, name: '陈立新', role: '运营企业管理员', level: 'enterprise', province: '浙江', enterprise: '菜鸟ET物流', enterpriseId: 'ENT004', status: 'inactive' },
+  { id: 6, name: '刘伟', role: '区域调度员', level: 'regional', province: '四川', enterprise: '邮政EMS无人机', enterpriseId: 'ENT005', status: 'active' },
+  { id: 7, name: '周美玲', role: '区域调度员', level: 'regional', province: '广东', enterprise: '顺丰无人机物流', enterpriseId: 'ENT001', status: 'active' },
 ];
 
 export default function Permissions() {
   const [activeTab, setActiveTab] = useState<'roles' | 'users' | 'enterprises'>('roles');
   const [searchQuery, setSearchQuery] = useState('');
 
+  const currentUser = useAppStore((state) => state.user);
+  const switchRole = useAppStore((state) => state.switchRole);
+
+  const isOriginalNational = currentUser.role === 'national_admin';
+
   const filteredUsers = users.filter((u) =>
     u.name.includes(searchQuery) || u.enterprise.includes(searchQuery)
   );
+
+  const handleSwitchRole = (roleId: string) => {
+    const role = roleId as UserType['role'];
+    const roleLevel = roles.find((r) => r.id === roleId)?.level;
+    const matchUser = users.find((u) => u.level === roleLevel);
+    switchRole(role, matchUser?.province === '全国' ? undefined : matchUser?.province, matchUser?.enterpriseId);
+  };
+
+  const handleBackToNational = () => {
+    switchRole('national_admin');
+  };
 
   return (
     <div className="space-y-6">
@@ -76,6 +102,17 @@ export default function Permissions() {
             国家、省、运营企业三级权限管理，数据隔离
           </p>
         </div>
+        {!isOriginalNational && (
+          <div className="flex items-center gap-3">
+            <span className="badge-info">
+              当前角色: {levelLabels[currentUser.level] || currentUser.level}
+            </span>
+            <button onClick={handleBackToNational} className="btn-secondary flex items-center gap-2 text-sm">
+              <ArrowLeftRight className="w-4 h-4" />
+              返回国家级
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2 p-1 bg-panel-bg rounded-xl w-fit border border-panel-border">
@@ -115,10 +152,11 @@ export default function Permissions() {
               enterprise: 'text-alert-amber',
               regional: 'text-alert-green',
             };
+            const isCurrentRole = currentUser.role === role.id;
             return (
               <div
                 key={role.id}
-                className={`panel bg-gradient-to-br ${levelColors[role.level as keyof typeof levelColors]}`}
+                className={`panel bg-gradient-to-br ${levelColors[role.level as keyof typeof levelColors]} ${isCurrentRole ? 'ring-2 ring-tech-cyan' : ''}`}
               >
                 <div className="panel-body">
                   <div className="flex items-start gap-4">
@@ -129,6 +167,9 @@ export default function Permissions() {
                       <h3 className="font-semibold text-text-primary">{role.name}</h3>
                       <p className="text-sm text-text-secondary mt-1">{role.description}</p>
                     </div>
+                    {isCurrentRole && (
+                      <span className="badge-info">当前</span>
+                    )}
                   </div>
                   <div className="mt-5 pt-5 border-t border-white/10">
                     <p className="text-sm text-text-secondary mb-3">拥有权限</p>
@@ -144,6 +185,17 @@ export default function Permissions() {
                       ))}
                     </div>
                   </div>
+                  {!isCurrentRole && (
+                    <div className="mt-4 pt-4 border-t border-white/10">
+                      <button
+                        onClick={() => handleSwitchRole(role.id)}
+                        className="btn-primary flex items-center gap-2 text-sm py-1.5"
+                      >
+                        <ArrowLeftRight className="w-4 h-4" />
+                        切换到该角色
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );

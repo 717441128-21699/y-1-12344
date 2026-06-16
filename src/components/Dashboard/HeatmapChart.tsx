@@ -1,11 +1,15 @@
 import ReactECharts from 'echarts-for-react';
 import { useAppStore } from '../../store';
+import type { ProvinceData } from '../../types';
 
-export default function HeatmapChart() {
-  const provinceData = useAppStore((state) => state.provinceData);
+interface HeatmapChartProps {
+  data: ProvinceData[];
+}
+
+export default function HeatmapChart({ data }: HeatmapChartProps) {
   const setSelectedProvince = useAppStore((state) => state.setSelectedProvince);
 
-  const data = provinceData.map((p) => ({
+  const chartData = data.map((p) => ({
     value: [p.center[0], p.center[1], p.onTimeRate],
     name: p.name,
     totalDeliveries: p.totalDeliveries,
@@ -68,7 +72,7 @@ export default function HeatmapChart() {
         name: '准时率',
         type: 'effectScatter',
         coordinateSystem: 'cartesian2d',
-        data: data,
+        data: chartData,
         symbolSize: (val: any) => Math.sqrt(val.totalDeliveries) / 3 + 12,
         rippleEffect: {
           brushType: 'stroke',

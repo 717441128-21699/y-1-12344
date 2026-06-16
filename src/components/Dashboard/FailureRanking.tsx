@@ -1,9 +1,12 @@
-import { useAppStore } from '../../store';
 import { TrendingDown, TrendingUp } from 'lucide-react';
+import type { DroneModelStats } from '../../types';
 
-export default function FailureRanking() {
-  const modelStats = useAppStore((state) => state.droneModelStats);
-  const sortedStats = [...modelStats].sort((a, b) => b.failureRate - a.failureRate);
+interface FailureRankingProps {
+  data: DroneModelStats[];
+}
+
+export default function FailureRanking({ data }: FailureRankingProps) {
+  const sortedStats = [...data].sort((a, b) => b.failureRate - a.failureRate);
 
   return (
     <div className="space-y-3">
